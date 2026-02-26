@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cosmos Generator</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="app-header">
+        <h1>Cosmos Generator</h1>
+        <p>Choose a style and generate a wallpaper in one click.</p>
+      </header>
+
+      <section class="controls" aria-label="Generator controls">
+        <label class="control">
+          <span>Style</span>
+          <select id="styleSelect"></select>
+        </label>
+
+        <label class="control">
+          <span>Format</span>
+          <select id="formatSelect"></select>
+        </label>
+
+        <div class="actions">
+          <button id="generateBtn" type="button">Generate</button>
+          <button id="downloadBtn" type="button">Download PNG</button>
+        </div>
+      </section>
+
+      <p id="meta" class="meta" aria-live="polite"></p>
+
+      <section class="preview" aria-label="Wallpaper preview">
+        <canvas id="wallpaperCanvas"></canvas>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
