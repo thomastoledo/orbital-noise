@@ -199,30 +199,38 @@ async function ensureTurnstileRendered() {
     return;
   }
 
-  authState.widgetId = await renderTurnstile({
-    container: turnstileContainer,
-    sitekey: TURNSTILE_SITEKEY,
-    onToken(token) {
-      authState.turnstileToken = token;
-      void exchangeTurnstileForSession(token);
-    },
-    onExpired() {
-      clearTurnstileToken();
-      if (!hasValidSession()) {
-        meta.textContent = "Human check expired. Please complete it again.";
-      }
-      resetTurnstile(authState.widgetId);
-      refreshControlStates();
-    },
-    onError() {
-      authState.hardError = true;
-      clearTurnstileToken();
-      meta.textContent = "Human check failed to load. Please refresh and retry.";
-      refreshControlStates();
-    },
-  });
-
-  refreshControlStates();
+  try {
+    authState.widgetId = await renderTurnstile({
+      container: turnstileContainer,
+      sitekey: TURNSTILE_SITEKEY,
+      onToken(token) {
+        authState.turnstileToken = token;
+        void exchangeTurnstileForSession(token);
+      },
+      onExpired() {
+        clearTurnstileToken();
+        if (!hasValidSession()) {
+          meta.textContent = "Human check expired. Please complete it again.";
+        }
+        resetTurnstile(authState.widgetId);
+        refreshControlStates();
+      },
+      onError() {
+        authState.hardError = true;
+        clearTurnstileToken();
+        meta.textContent = "Human check failed to load. Please refresh and retry.";
+        refreshControlStates();
+      },
+    });
+  } catch (error) {
+    authState.hardError = true;
+    clearTurnstileToken();
+    meta.textContent =
+      "Captcha script not loaded (blocked or network error). Disable blockers and refresh.";
+    console.error(error);
+  } finally {
+    refreshControlStates();
+  }
 }
 
 /**
@@ -362,7 +370,7 @@ async function init() {
 
   loadStoredSession();
   refreshControlStates();
-  await ensureTurnstileRendered();
+  void ensureTurnstileRendered();
 
   if (hasValidSession()) {
     void generate();

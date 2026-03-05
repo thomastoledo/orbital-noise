@@ -41,10 +41,15 @@ export function resetTurnstile(widgetId) {
 }
 
 function waitForTurnstile() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
     const poll = () => {
       if (window.turnstile) {
         resolve(window.turnstile);
+        return;
+      }
+      if (Date.now() - startedAt > 12000) {
+        reject(new Error("turnstile_load_timeout"));
         return;
       }
       setTimeout(poll, 150);
