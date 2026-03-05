@@ -129,3 +129,9 @@ canvas {
   max-width: 100%;
   max-height: min(70vh, 760px);
 }
+
+.turnstile-container {
+  min-height: 65px;
+  display: flex;
+  align-items: center;
+}

@@ -111,3 +111,48 @@ Options are merged and style-scaled by:
 ## License
 
 MIT. See [LICENSE](./LICENSE).
+
+## Turnstile + Protected Metadata Pipeline
+
+The PNG metadata envelope is now issued by a backend (not by frontend secrets).
+
+### 1) Create Turnstile keys
+
+In Cloudflare Turnstile dashboard, create a widget and set allowed hostnames:
+
+- `thomastoledo.github.io`
+- `localhost`
+
+Use in this project:
+
+- Frontend sitekey (public): `0x4AAAAAACllYcR8reFAKBjJ`
+- Backend secret: set `TURNSTILE_SECRET` in `server/.env`
+
+### 2) Run backend locally
+
+```bash
+cd server
+cp .env.example .env
+npm install
+npm run dev
+```
+
+### 3) Frontend/backend wiring
+
+- Frontend uses Turnstile token + `seed` and calls `POST /payload`.
+- Backend verifies Turnstile server-side and returns encrypted envelope only.
+- Frontend injects envelope in PNG iTXt chunk `suntraz` before first `IDAT`.
+
+### 4) Test the full flow
+
+1. Start backend (`server` folder).
+2. Start static frontend server from project root.
+3. Open app, complete Turnstile, generate image, download PNG.
+4. Verify metadata:
+
+```bash
+exiftool -a -G1 -s -iTXt:all cosmos-*.png
+```
+
+You should see iTXt keyword `suntraz` containing envelope JSON (`alg`, `iter`, `salt_b64`, `iv_b64`, `ct_b64`).
+
