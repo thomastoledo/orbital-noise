@@ -368,7 +368,7 @@ async function init() {
     meta.textContent = "PLEASE HELP US.";
     setTimeout(() => {
       meta.textContent = oldTextContent;
-    }, 1000);
+    }, 500);
   });
   styleSelect.addEventListener("change", generate);
   formatSelect.addEventListener("change", generate);
