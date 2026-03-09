@@ -364,6 +364,11 @@ async function init() {
   generateBtn.addEventListener("click", generate);
   downloadBtn.addEventListener("click", () => {
     void downloadPng();
+    const oldTextContent = meta.textContent;
+    meta.textContent = "PLEASE HELP US.";
+    setTimeout(() => {
+      meta.textContent = oldTextContent;
+    }, 1000);
   });
   styleSelect.addEventListener("change", generate);
   formatSelect.addEventListener("change", generate);
