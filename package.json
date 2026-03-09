@@ -1,0 +1,12 @@
+{
+  "name": "orbital-noise",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node ./scripts/build.mjs"
+  },
+  "devDependencies": {
+    "lightningcss": "^1.30.2",
+    "terser": "^5.39.0"
+  }
+}

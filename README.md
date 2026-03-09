@@ -35,17 +35,29 @@ It supports multiple visual styles, generates in desktop or mobile formats, and 
 
 ## Quick Start
 
-No build step or dependencies are required.
+1. Install dependencies:
 
-1. Start a local static server from the project root:
+```bash
+npm install
+```
+
+2. Start a local static server from the project root:
 
 ```bash
 python3 -m http.server 5173
 ```
 
-2. Open [http://localhost:5173](http://localhost:5173) in your browser.
-3. Pick a style and format, then click **Generate**.
-4. Click **Download PNG** to save the current canvas render.
+3. Open [http://localhost:5173](http://localhost:5173) in your browser.
+4. Pick a style and format, then click **Generate**.
+5. Click **Download PNG** to save the current canvas render.
+
+## Build
+
+Create a production-ready `dist/` folder with minified JavaScript and CSS:
+
+```bash
+npm run build
+```
 
 ## How It Works
 
