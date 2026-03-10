@@ -6,6 +6,12 @@ const generatorCache = new Map();
 /** @type {Map<import("./config.js").StyleId, import("./config.js").StyleConfig>} */
 const styleLookup = new Map(STYLE_OPTIONS.map((style) => [style.id, style]));
 
+const generatorLoaders = {
+  normal: () => import("./modes/normal/index.js"),
+  gold: () => import("./modes/gold/index.js"),
+  "blue-ink": () => import("./modes/blue-ink/index.js"),
+};
+
 /**
  * Lazily loads one of the existing generator modules and caches it.
  * @param {import("./config.js").StyleId} styleId
@@ -22,7 +28,12 @@ export async function loadGenerator(styleId) {
     return cached;
   }
 
-  const module = /** @type {import("./config.js").GeneratorModule} */ (await import(style.importPath));
+  const loadGeneratorModule = generatorLoaders[styleId];
+  if (!loadGeneratorModule) {
+    throw new Error(`Generator "${styleId}" is not wired into generatorRegistry.js.`);
+  }
+
+  const module = /** @type {import("./config.js").GeneratorModule} */ (await loadGeneratorModule());
   if (typeof module.generateWallpaper !== "function") {
     throw new Error(`Generator "${styleId}" is missing generateWallpaper().`);
   }

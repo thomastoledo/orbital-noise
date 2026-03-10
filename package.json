@@ -6,7 +6,10 @@
     "build": "node ./scripts/build.mjs"
   },
   "devDependencies": {
-    "lightningcss": "^1.30.2",
-    "terser": "^5.39.0"
+    "esbuild": "^0.27.3",
+    "lightningcss": "^1.30.2"
+  },
+  "dependencies": {
+    "statello": "^0.0.6"
   }
 }

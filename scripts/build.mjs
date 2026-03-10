@@ -1,13 +1,13 @@
 import { mkdir, readdir, readFile, rm, stat, writeFile, copyFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 import { transform } from "lightningcss";
-import { minify } from "terser";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(scriptDir, "..");
 const distDir = path.join(projectRoot, "dist");
-const buildEntries = ["index.html", "styles.css", "app.js", "config.js", "generatorRegistry.js", "src", "modes", "assets"];
+const staticEntries = ["index.html", "styles.css", "assets"];
 
 async function pathExists(targetPath) {
   try {
@@ -20,27 +20,6 @@ async function pathExists(targetPath) {
 
 async function ensureParentDir(targetPath) {
   await mkdir(path.dirname(targetPath), { recursive: true });
-}
-
-async function minifyJavaScript(sourcePath, targetPath) {
-  const code = await readFile(sourcePath, "utf8");
-  const result = await minify(code, {
-    module: true,
-    compress: {
-      passes: 2,
-    },
-    mangle: true,
-    format: {
-      comments: false,
-    },
-  });
-
-  if (!result.code) {
-    throw new Error(`Terser returned no output for ${path.relative(projectRoot, sourcePath)}`);
-  }
-
-  await ensureParentDir(targetPath);
-  await writeFile(targetPath, result.code);
 }
 
 async function minifyStylesheet(sourcePath, targetPath) {
@@ -61,19 +40,14 @@ async function copyAsset(sourcePath, targetPath) {
   await copyFile(sourcePath, targetPath);
 }
 
-async function buildEntry(relativePath) {
+async function buildStaticEntry(relativePath) {
   const sourcePath = path.join(projectRoot, relativePath);
   const targetPath = path.join(distDir, relativePath);
   const sourceStat = await stat(sourcePath);
 
   if (sourceStat.isDirectory()) {
     const entries = await readdir(sourcePath);
-    await Promise.all(entries.map((entry) => buildEntry(path.join(relativePath, entry))));
-    return;
-  }
-
-  if (relativePath.endsWith(".js")) {
-    await minifyJavaScript(sourcePath, targetPath);
+    await Promise.all(entries.map((entry) => buildStaticEntry(path.join(relativePath, entry))));
     return;
   }
 
@@ -85,20 +59,42 @@ async function buildEntry(relativePath) {
   await copyAsset(sourcePath, targetPath);
 }
 
+async function buildJavaScript() {
+  await build({
+    absWorkingDir: projectRoot,
+    entryPoints: ["app.js"],
+    outdir: distDir,
+    bundle: true,
+    splitting: true,
+    format: "esm",
+    platform: "browser",
+    target: ["es2020"],
+    minify: true,
+    sourcemap: false,
+    logLevel: "silent",
+    entryNames: "[name]",
+    chunkNames: "chunks/[name]-[hash]",
+    assetNames: "assets/[name]-[hash]",
+  });
+}
+
 async function main() {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
 
   const existingEntries = [];
-  for (const entry of buildEntries) {
+  for (const entry of staticEntries) {
     if (await pathExists(path.join(projectRoot, entry))) {
       existingEntries.push(entry);
     }
   }
 
-  await Promise.all(existingEntries.map((entry) => buildEntry(entry)));
+  await Promise.all(existingEntries.map((entry) => buildStaticEntry(entry)));
+  await buildJavaScript();
 
-  console.log(`Built ${existingEntries.length} project entr${existingEntries.length === 1 ? "y" : "ies"} into dist/`);
+  console.log(
+    `Built app bundle and ${existingEntries.length} static entr${existingEntries.length === 1 ? "y" : "ies"} into dist/`
+  );
 }
 
 main().catch((error) => {

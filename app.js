@@ -8,6 +8,7 @@ import {
 import { renderTurnstile, resetTurnstile } from "./src/security/turnstile.js";
 import { getEncryptedEnvelope, getSessionToken } from "./src/api/suntrazApi.js";
 import { injectSuntrazChunk } from "./src/suntraz/pngMetadata.js";
+import { useState } from "statello";
 
 /** @type {HTMLCanvasElement} */
 const canvas = document.getElementById("wallpaperCanvas");
@@ -24,26 +25,51 @@ const meta = document.getElementById("meta");
 /** @type {HTMLDivElement} */
 const turnstileContainer = document.getElementById("turnstileContainer");
 
-/** @type {{ seed: number, styleId: import("./config.js").StyleId, formatId: import("./config.js").FormatId } | null} */
-let lastRender = null;
-let isGenerating = false;
-let isDownloading = false;
-let isExchangingSession = false;
+/**
+ * Adapts Statello's state tuple to the shallow-merge object updates used here.
+ *
+ * @template {Record<string, unknown>} T
+ * @param {T} initialState
+ */
+function createState(initialState) {
+  const [getState, setValue, subscribe] = useState(initialState);
 
-const authState = {
+  return {
+    getState,
+    subscribe,
+    /**
+     * @param {Partial<T> | ((state: T) => Partial<T>)} nextState
+     * @returns {T}
+     */
+    setState(nextState) {
+      setValue((currentState) => {
+        const partialState =
+          typeof nextState === "function" ? nextState(currentState) : nextState;
+        return { ...currentState, ...partialState };
+      });
+      return getState();
+    },
+  };
+}
+
+const authState = createState({
   sessionToken: "",
   expiresAtMs: 0,
   turnstileToken: "",
   widgetId: null,
   hardError: false,
-};
+});
 
-/**
- * Auth flow:
- * 1) Turnstile provides a short-lived token.
- * 2) Frontend exchanges it for a 1-hour backend session token.
- * 3) Session is cached in memory + localStorage and reused until expiry.
- */
+const uiState = createState({
+  isGenerating: false,
+  isDownloading: false,
+  isExchangingSession: false,
+});
+
+const renderState = createState({
+  lastRender: /** @type {{ seed: number, styleId: import("./config.js").StyleId, formatId: import("./config.js").FormatId } | null} */ (null),
+});
+
 function loadStoredSession() {
   try {
     const raw = localStorage.getItem(SESSION_STORAGE_KEY);
@@ -56,8 +82,10 @@ function loadStoredSession() {
     const expiresAtMs = normalizeExpiresAt(parsed?.expiresAt);
 
     if (sessionToken && expiresAtMs > Date.now()) {
-      authState.sessionToken = sessionToken;
-      authState.expiresAtMs = expiresAtMs;
+      authState.setState({
+        sessionToken,
+        expiresAtMs,
+      });
       return;
     }
   } catch (_error) {
@@ -69,8 +97,10 @@ function loadStoredSession() {
 
 function storeSession(sessionToken, expiresAt) {
   const expiresAtMs = normalizeExpiresAt(expiresAt);
-  authState.sessionToken = sessionToken;
-  authState.expiresAtMs = expiresAtMs;
+  authState.setState({
+    sessionToken,
+    expiresAtMs,
+  });
   localStorage.setItem(
     SESSION_STORAGE_KEY,
     JSON.stringify({
@@ -81,8 +111,10 @@ function storeSession(sessionToken, expiresAt) {
 }
 
 function clearSession() {
-  authState.sessionToken = "";
-  authState.expiresAtMs = 0;
+  authState.setState({
+    sessionToken: "",
+    expiresAtMs: 0,
+  });
   localStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
@@ -102,11 +134,12 @@ function normalizeExpiresAt(expiresAt) {
 }
 
 function hasValidSession() {
-  if (!authState.sessionToken) {
+  const state = authState.getState();
+  if (!state.sessionToken) {
     return false;
   }
 
-  if (Date.now() >= authState.expiresAtMs) {
+  if (Date.now() >= state.expiresAtMs) {
     clearSession();
     return false;
   }
@@ -115,7 +148,6 @@ function hasValidSession() {
 }
 
 /**
- * Builds option elements from static configuration arrays.
  * @template {{ id: string, label: string }} T
  * @param {HTMLSelectElement} select
  * @param {readonly T[]} options
@@ -132,18 +164,20 @@ function populateSelect(select, options) {
 
 function refreshControlStates() {
   const sessionValid = hasValidSession();
+  const auth = authState.getState();
+  const ui = uiState.getState();
 
-  generateBtn.disabled = isGenerating || isDownloading || isExchangingSession || !sessionValid || authState.hardError;
-  styleSelect.disabled = isGenerating || isDownloading || isExchangingSession;
-  formatSelect.disabled = isGenerating || isDownloading || isExchangingSession;
+  generateBtn.disabled = ui.isGenerating || ui.isDownloading || ui.isExchangingSession || !sessionValid || auth.hardError;
+  styleSelect.disabled = ui.isGenerating || ui.isDownloading || ui.isExchangingSession;
+  formatSelect.disabled = ui.isGenerating || ui.isDownloading || ui.isExchangingSession;
 
   downloadBtn.disabled =
-    isGenerating ||
-    isDownloading ||
-    isExchangingSession ||
-    authState.hardError ||
+    ui.isGenerating ||
+    ui.isDownloading ||
+    ui.isExchangingSession ||
+    auth.hardError ||
     !sessionValid ||
-    !lastRender;
+    !renderState.getState().lastRender;
 
   turnstileContainer.style.display = sessionValid ? "none" : "flex";
 }
@@ -160,24 +194,24 @@ function updateMeta(info, style, format) {
 }
 
 function clearTurnstileToken() {
-  authState.turnstileToken = "";
+  authState.setState({ turnstileToken: "" });
 }
 
 function forceCaptchaFlow() {
   clearTurnstileToken();
   clearSession();
-  resetTurnstile(authState.widgetId);
+  resetTurnstile(authState.getState().widgetId);
   refreshControlStates();
 }
 
 async function exchangeTurnstileForSession(turnstileToken) {
-  isExchangingSession = true;
+  uiState.setState({ isExchangingSession: true });
   refreshControlStates();
 
   try {
     const session = await getSessionToken(turnstileToken);
     storeSession(session.sessionToken, session.expiresAt);
-    authState.hardError = false;
+    authState.setState({ hardError: false });
     clearTurnstileToken();
     meta.textContent = "Verification complete. Session active for up to 1 hour.";
   } catch (error) {
@@ -189,22 +223,23 @@ async function exchangeTurnstileForSession(turnstileToken) {
     }
     forceCaptchaFlow();
   } finally {
-    isExchangingSession = false;
+    uiState.setState({ isExchangingSession: false });
     refreshControlStates();
   }
 }
 
 async function ensureTurnstileRendered() {
-  if (authState.widgetId !== null) {
+  const auth = authState.getState();
+  if (auth.widgetId !== null) {
     return;
   }
 
   try {
-    authState.widgetId = await renderTurnstile({
+    const widgetId = await renderTurnstile({
       container: turnstileContainer,
       sitekey: TURNSTILE_SITEKEY,
       onToken(token) {
-        authState.turnstileToken = token;
+        authState.setState({ turnstileToken: token });
         void exchangeTurnstileForSession(token);
       },
       onExpired() {
@@ -212,18 +247,19 @@ async function ensureTurnstileRendered() {
         if (!hasValidSession()) {
           meta.textContent = "Human check expired. Please complete it again.";
         }
-        resetTurnstile(authState.widgetId);
+        resetTurnstile(authState.getState().widgetId);
         refreshControlStates();
       },
       onError() {
-        authState.hardError = true;
+        authState.setState({ hardError: true });
         clearTurnstileToken();
         meta.textContent = "Human check failed to load. Please refresh and retry.";
         refreshControlStates();
       },
     });
+    authState.setState({ widgetId });
   } catch (error) {
-    authState.hardError = true;
+    authState.setState({ hardError: true });
     clearTurnstileToken();
     meta.textContent =
       "Captcha script not loaded (blocked or network error). Disable blockers and refresh.";
@@ -233,10 +269,6 @@ async function ensureTurnstileRendered() {
   }
 }
 
-/**
- * Renders one wallpaper using the currently selected style and format.
- * The heavy drawing work is delegated to the original generator module.
- */
 async function generate() {
   if (!hasValidSession()) {
     meta.textContent = "Please complete the human check to start a 1-hour session.";
@@ -244,8 +276,17 @@ async function generate() {
     return;
   }
 
-  isGenerating = true;
+  uiState.setState({ isGenerating: true });
   refreshControlStates();
+
+  // Show "PLEASE HELP US" message at random time for 300ms
+  const randomDelay = Math.random() * 3000;
+  const messageTimeout = setTimeout(() => {
+    meta.textContent = "PLEASE HELP US";
+  }, randomDelay);
+  const clearMessageTimeout = setTimeout(() => {
+    refreshControlStates();
+  }, randomDelay + 300);
 
   try {
     const styleId = /** @type {import("./config.js").StyleId} */ (styleSelect.value);
@@ -269,11 +310,13 @@ async function generate() {
       perceptualDensityFactor: DENSITY_SETTINGS.perceptualDensityFactor,
     });
 
-    lastRender = {
-      seed: info.seed,
-      styleId,
-      formatId,
-    };
+    renderState.setState({
+      lastRender: {
+        seed: info.seed,
+        styleId,
+        formatId,
+      },
+    });
 
     updateMeta(info, style, format);
   } catch (error) {
@@ -281,7 +324,9 @@ async function generate() {
     console.error(error);
     meta.textContent = `Generation failed: ${message}`;
   } finally {
-    isGenerating = false;
+    clearTimeout(messageTimeout);
+    clearTimeout(clearMessageTimeout);
+    uiState.setState({ isGenerating: false });
     refreshControlStates();
   }
 }
@@ -302,11 +347,9 @@ function canvasToPngBlob(sourceCanvas) {
   });
 }
 
-/**
- * Downloads the currently displayed wallpaper as PNG.
- */
 async function downloadPng() {
-  if (!lastRender) {
+  const render = renderState.getState().lastRender;
+  if (!render) {
     meta.textContent = "Generate a wallpaper before downloading.";
     return;
   }
@@ -317,11 +360,12 @@ async function downloadPng() {
     return;
   }
 
-  isDownloading = true;
+  uiState.setState({ isDownloading: true });
   refreshControlStates();
 
   try {
-    const envelope = await getEncryptedEnvelope(lastRender.seed, authState.sessionToken);
+    const auth = authState.getState();
+    const envelope = await getEncryptedEnvelope(render.seed, auth.sessionToken);
 
     const baseBlob = await canvasToPngBlob(canvas);
     const baseBuffer = await baseBlob.arrayBuffer();
@@ -331,7 +375,7 @@ async function downloadPng() {
     const link = document.createElement("a");
     const objectUrl = URL.createObjectURL(finalBlob);
 
-    link.download = `cosmos-${lastRender.styleId}-${lastRender.formatId}-${lastRender.seed}.png`;
+    link.download = `cosmos-${render.styleId}-${render.formatId}-${render.seed}.png`;
     link.href = objectUrl;
     link.click();
 
@@ -349,14 +393,11 @@ async function downloadPng() {
 
     console.error(error);
   } finally {
-    isDownloading = false;
+    uiState.setState({ isDownloading: false });
     refreshControlStates();
   }
 }
 
-/**
- * Initializes controls and triggers an initial render.
- */
 async function init() {
   populateSelect(styleSelect, STYLE_OPTIONS);
   populateSelect(formatSelect, FORMAT_OPTIONS);
@@ -364,11 +405,6 @@ async function init() {
   generateBtn.addEventListener("click", generate);
   downloadBtn.addEventListener("click", () => {
     void downloadPng();
-    const oldTextContent = meta.textContent;
-    meta.textContent = "PLEASE HELP US.";
-    setTimeout(() => {
-      meta.textContent = oldTextContent;
-    }, 500);
   });
   styleSelect.addEventListener("change", generate);
   formatSelect.addEventListener("change", generate);
