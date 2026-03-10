@@ -66,7 +66,7 @@ export function createUiHelpers({
     elements.signal.textContent = "Please help us.";
     setTimeout(() => {
       elements.signal.textContent = '';
-    }, 300);
+    }, 1000);
   }
 
   function updateHelpMessageCountdown() {

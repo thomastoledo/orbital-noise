@@ -112,6 +112,11 @@ button:disabled {
   font-size: 0.92rem;
 }
 
+.signal {
+  font-size: 0.5em;
+  min-height: 1em;
+}
+
 .preview {
   display: grid;
   place-items: center;
