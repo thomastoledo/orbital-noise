@@ -96,6 +96,7 @@ const { downloadPng } = createDownloadAction({
   forceCaptchaFlow: authFlow.forceCaptchaFlow,
   refreshControlStates: ui.refreshControlStates,
   appendLog: ui.appendLog,
+  maybeLogArgHint: ui.maybeLogArgHint,
   getEncryptedEnvelope,
   injectSuntrazChunk,
 });

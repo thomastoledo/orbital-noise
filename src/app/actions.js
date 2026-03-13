@@ -121,6 +121,7 @@ export function createDownloadAction({
   forceCaptchaFlow,
   refreshControlStates,
   appendLog,
+  maybeLogArgHint,
   getEncryptedEnvelope,
   injectSuntrazChunk,
 }) {
@@ -160,6 +161,11 @@ export function createDownloadAction({
         tag: "download",
       });
       const envelope = await getEncryptedEnvelope(render.seed, auth.sessionToken);
+      appendLog("Metadata response received. Envelope ready for injection.", {
+        level: "trace",
+        tag: "download",
+      });
+      maybeLogArgHint("download");
 
       const baseBlob = await canvasToPngBlob(elements.canvas);
       const baseBuffer = await baseBlob.arrayBuffer();

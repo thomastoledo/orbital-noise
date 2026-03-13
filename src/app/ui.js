@@ -15,6 +15,10 @@ export function populateSelect(select, options) {
 
 const MAX_LOG_LINES = 18;
 const ARG_PASSPHRASE = "ftZ1QmWD8F47EiHRe0IPZrYN8UaT58ivrUOeMuhta9S91GvmsQUIow9UTukuVOZV";
+const ARG_HINT_CHANCES = Object.freeze({
+  render: 0.28,
+  download: 0.4,
+});
 
 export function createUiHelpers({
   elements,
@@ -25,8 +29,6 @@ export function createUiHelpers({
   setHelpMessageState,
   hasValidSession,
 }) {
-  let argHintLogged = false;
-
   function formatTimestamp() {
     return new Date().toLocaleTimeString("en-GB", {
       hour12: false,
@@ -60,16 +62,27 @@ export function createUiHelpers({
     elements.meta.scrollTop = elements.meta.scrollHeight;
   }
 
-  function logArgHint() {
-    if (argHintLogged) {
+  function maybeLogArgHint(source) {
+    const chance = ARG_HINT_CHANCES[source] ?? 0.25;
+    if (Math.random() > chance) {
       return;
     }
 
-    argHintLogged = true;
-    appendLog(
-      `Hint: one passphrase is static, not generated, and it was baked into the source. Fingerprint ${ARG_PASSPHRASE.slice(0, 4)}...${ARG_PASSPHRASE.slice(-4)}.`,
-      { level: "trace", tag: "arg" },
-    );
+    const fingerprint = `${ARG_PASSPHRASE.slice(0, 4)}...${ARG_PASSPHRASE.slice(-4)}`;
+    const messages = {
+      render: [
+        `Hint: one passphrase is static, not generated, and it was baked into the source. Fingerprint ${fingerprint}.`,
+        `Hint: render telemetry keeps changing, but one passphrase never does. Fingerprint ${fingerprint}.`,
+      ],
+      download: [
+        `Hint: the download response carries a familiar signature. Static passphrase fingerprint ${fingerprint}.`,
+        `Hint: if a response looks too consistent, inspect the source. Static passphrase fingerprint ${fingerprint}.`,
+      ],
+    };
+    const options = messages[source] ?? messages.render;
+    const message = options[Math.floor(Math.random() * options.length)];
+
+    appendLog(message, { level: "trace", tag: "arg" });
   }
 
   function refreshControlStates() {
@@ -122,7 +135,7 @@ export function createUiHelpers({
       appendLog(`colors=${colorsText}`, { level: "trace", tag: "color" });
     }
 
-    logArgHint();
+    maybeLogArgHint("render");
   }
 
   function displayHelpMessage() {
@@ -157,6 +170,7 @@ export function createUiHelpers({
 
   return {
     appendLog,
+    maybeLogArgHint,
     refreshControlStates,
     updateMeta,
     createGenerateHandler,
