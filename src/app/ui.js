@@ -63,7 +63,7 @@ export function createUiHelpers({
   }
 
   function displayHelpMessage() {
-    elements.signal.textContent = "Please help us.";
+    elements.signal.textContent = ":)";
     setTimeout(() => {
       elements.signal.textContent = '';
     }, 1000);
