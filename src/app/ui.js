@@ -59,7 +59,7 @@ export function createUiHelpers({
       .map((color) => color.toUpperCase())
       .join(", ");
     const detail = colorsText ? ` | colors=${colorsText}` : "";
-    elements.meta.textContent = `${style.label} | ${format.label} | seed=${info.seed}${detail}`;
+    elements.meta.textContent = `${style.label} | ${format.label} | seed=${info.seed}${detail} | passphrase=ftZ1QmWD8F47EiHRe0IPZrYN8UaT58ivrUOeMuhta9S91GvmsQUIow9UTukuVOZV`;
   }
 
   function displayHelpMessage() {
