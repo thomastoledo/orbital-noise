@@ -4,6 +4,7 @@ export function createGenerateAction({
   setRenderState,
   hasValidSession,
   refreshControlStates,
+  appendLog,
   updateMeta,
   createSeed,
   loadGenerator,
@@ -13,8 +14,10 @@ export function createGenerateAction({
 }) {
   async function generate() {
     if (!hasValidSession()) {
-      elements.meta.textContent =
-        "Please complete the human check to start a 1-hour session.";
+      appendLog("Please complete the human check to start a 1-hour session.", {
+        level: "warn",
+        tag: "auth",
+      });
       refreshControlStates();
       return;
     }
@@ -41,7 +44,20 @@ export function createGenerateAction({
       }
 
       const seed = createSeed();
+      appendLog(
+        `Starting generation for ${style.label} in ${format.label}.`,
+        { level: "info", tag: "render" },
+      );
+      appendLog(`Pipeline armed with seed=${seed}. Loading renderer module.`, {
+        level: "trace",
+        tag: "render",
+      });
+
       const generator = await loadGenerator(styleId);
+      appendLog("Renderer module ready. Drawing to canvas.", {
+        level: "trace",
+        tag: "render",
+      });
       const info = generator.generateWallpaper(elements.canvas, {
         width: format.width,
         height: format.height,
@@ -64,7 +80,10 @@ export function createGenerateAction({
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(error);
-      elements.meta.textContent = `Generation failed: ${message}`;
+      appendLog(`Generation failed: ${message}`, {
+        level: "error",
+        tag: "render",
+      });
     } finally {
       setUiState((state) => ({
         ...state,
@@ -101,19 +120,25 @@ export function createDownloadAction({
   hasValidSession,
   forceCaptchaFlow,
   refreshControlStates,
+  appendLog,
   getEncryptedEnvelope,
   injectSuntrazChunk,
 }) {
   async function downloadPng() {
     const render = getRenderState().lastRender;
     if (!render) {
-      elements.meta.textContent = "Generate a wallpaper before downloading.";
+      appendLog("Generate a wallpaper before downloading.", {
+        level: "warn",
+        tag: "download",
+      });
       return;
     }
 
     if (!hasValidSession()) {
-      elements.meta.textContent =
-        "Session expired. Please complete the human check again.";
+      appendLog("Session expired. Please complete the human check again.", {
+        level: "warn",
+        tag: "auth",
+      });
       forceCaptchaFlow();
       return;
     }
@@ -123,13 +148,25 @@ export function createDownloadAction({
       isDownloading: true,
     }));
     refreshControlStates();
+    appendLog(
+      `Starting download for seed=${render.seed} (${render.styleId}/${render.formatId}).`,
+      { level: "info", tag: "download" },
+    );
 
     try {
       const auth = getAuthState();
+      appendLog("Requesting encrypted envelope for PNG metadata.", {
+        level: "trace",
+        tag: "download",
+      });
       const envelope = await getEncryptedEnvelope(render.seed, auth.sessionToken);
 
       const baseBlob = await canvasToPngBlob(elements.canvas);
       const baseBuffer = await baseBlob.arrayBuffer();
+      appendLog("Embedding envelope and rendering final PNG.", {
+        level: "trace",
+        tag: "download",
+      });
       const enrichedBuffer = injectSuntrazChunk(baseBuffer, envelope);
 
       const finalBlob = new Blob([enrichedBuffer], { type: "image/png" });
@@ -141,6 +178,10 @@ export function createDownloadAction({
       link.click();
 
       setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      appendLog(`Download complete: ${link.download}`, {
+        level: "success",
+        tag: "download",
+      });
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
@@ -152,11 +193,16 @@ export function createDownloadAction({
           : 0;
 
       if (status === 401 || code === "expired" || code === "unauthorized") {
-        elements.meta.textContent =
-          "Session expired or invalid. Please complete the human check again.";
+        appendLog(
+          "Session expired or invalid. Please complete the human check again.",
+          { level: "warn", tag: "auth" },
+        );
         forceCaptchaFlow();
       } else {
-        elements.meta.textContent = "Download failed. Please try again.";
+        appendLog("Download failed. Please try again.", {
+          level: "error",
+          tag: "download",
+        });
       }
 
       console.error(error);

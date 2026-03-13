@@ -29,7 +29,7 @@ const elements = {
   generateBtn: document.getElementById("generateBtn"),
   /** @type {HTMLButtonElement} */
   downloadBtn: document.getElementById("downloadBtn"),
-  /** @type {HTMLParagraphElement} */
+  /** @type {HTMLDivElement} */
   meta: document.getElementById("meta"),
   /** @type {HTMLDivElement} */
   turnstileContainer: document.getElementById("turnstileContainer"),
@@ -56,7 +56,7 @@ const ui = createUiHelpers({
 });
 
 const authFlow = createAuthFlow({
-  meta: elements.meta,
+  appendLog: ui.appendLog,
   turnstileContainer: elements.turnstileContainer,
   getAuthState: state.getAuthState,
   setAuthState: state.setAuthState,
@@ -78,6 +78,7 @@ const { generate } = createGenerateAction({
   setRenderState: state.setRenderState,
   hasValidSession: session.hasValidSession,
   refreshControlStates: ui.refreshControlStates,
+  appendLog: ui.appendLog,
   updateMeta: ui.updateMeta,
   createSeed,
   loadGenerator,
@@ -94,6 +95,7 @@ const { downloadPng } = createDownloadAction({
   hasValidSession: session.hasValidSession,
   forceCaptchaFlow: authFlow.forceCaptchaFlow,
   refreshControlStates: ui.refreshControlStates,
+  appendLog: ui.appendLog,
   getEncryptedEnvelope,
   injectSuntrazChunk,
 });
@@ -103,6 +105,10 @@ const handleGenerateWithHelpMessage = ui.createGenerateHandler(generate);
 async function init() {
   populateSelect(elements.styleSelect, STYLE_OPTIONS);
   populateSelect(elements.formatSelect, FORMAT_OPTIONS);
+  ui.appendLog("Cosmos generator console attached.", {
+    level: "trace",
+    tag: "boot",
+  });
 
   elements.generateBtn.addEventListener("click", handleGenerateWithHelpMessage);
   elements.downloadBtn.addEventListener("click", () => {
@@ -116,9 +122,16 @@ async function init() {
   void authFlow.ensureTurnstileRendered();
 
   if (session.hasValidSession()) {
+    ui.appendLog("Session restored from storage. Starting warm render.", {
+      level: "success",
+      tag: "auth",
+    });
     void generate();
   } else {
-    elements.meta.textContent = "Complete the human check to start your 1-hour session.";
+    ui.appendLog("Complete the human check to start your 1-hour session.", {
+      level: "warn",
+      tag: "auth",
+    });
   }
 }
 

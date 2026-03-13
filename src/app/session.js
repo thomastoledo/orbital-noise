@@ -102,7 +102,7 @@ export function createSessionHelpers({
 }
 
 export function createAuthFlow({
-  meta,
+  appendLog,
   turnstileContainer,
   getAuthState,
   setAuthState,
@@ -130,6 +130,10 @@ export function createAuthFlow({
       isExchangingSession: true,
     }));
     refreshControlStates();
+    appendLog("Verification received. Exchanging token for session.", {
+      level: "info",
+      tag: "auth",
+    });
 
     try {
       const session = await getSessionToken(turnstileToken);
@@ -139,16 +143,25 @@ export function createAuthFlow({
         hardError: false,
       }));
       clearTurnstileToken();
-      meta.textContent = "Verification complete. Session active for up to 1 hour.";
+      appendLog("Verification complete. Session active for up to 1 hour.", {
+        level: "success",
+        tag: "auth",
+      });
     } catch (error) {
       const code =
         error && typeof error === "object" && "code" in error
           ? String(error.code)
           : "request_failed";
       if (code === "turnstile_failed") {
-        meta.textContent = "Captcha validation failed. Please try again.";
+        appendLog("Captcha validation failed. Please try again.", {
+          level: "warn",
+          tag: "auth",
+        });
       } else {
-        meta.textContent = "Could not create session. Please try again.";
+        appendLog("Could not create session. Please try again.", {
+          level: "error",
+          tag: "auth",
+        });
       }
       forceCaptchaFlow();
     } finally {
@@ -180,7 +193,10 @@ export function createAuthFlow({
         onExpired() {
           clearTurnstileToken();
           if (!hasValidSession()) {
-            meta.textContent = "Human check expired. Please complete it again.";
+            appendLog("Human check expired. Please complete it again.", {
+              level: "warn",
+              tag: "auth",
+            });
           }
           resetTurnstile(getAuthState().widgetId);
           refreshControlStates();
@@ -191,7 +207,10 @@ export function createAuthFlow({
             hardError: true,
           }));
           clearTurnstileToken();
-          meta.textContent = "Human check failed to load. Please refresh and retry.";
+          appendLog("Human check failed to load. Please refresh and retry.", {
+            level: "error",
+            tag: "auth",
+          });
           refreshControlStates();
         },
       });
@@ -206,8 +225,10 @@ export function createAuthFlow({
         hardError: true,
       }));
       clearTurnstileToken();
-      meta.textContent =
-        "Captcha script not loaded (blocked or network error). Disable blockers and refresh.";
+      appendLog(
+        "Captcha script not loaded (blocked or network error). Disable blockers and refresh.",
+        { level: "error", tag: "auth" },
+      );
       console.error(error);
     } finally {
       refreshControlStates();
