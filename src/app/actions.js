@@ -121,7 +121,7 @@ export function createDownloadAction({
   forceCaptchaFlow,
   refreshControlStates,
   appendLog,
-  maybeLogArgHint,
+  maybeLogHint,
   getEncryptedEnvelope,
   injectSuntrazChunk,
 }) {
@@ -165,7 +165,7 @@ export function createDownloadAction({
         level: "trace",
         tag: "download",
       });
-      maybeLogArgHint("download");
+      maybeLogHint("download");
 
       const baseBlob = await canvasToPngBlob(elements.canvas);
       const baseBuffer = await baseBlob.arrayBuffer();

@@ -14,10 +14,10 @@ export function populateSelect(select, options) {
 }
 
 const MAX_LOG_LINES = 18;
-const ARG_PASSPHRASE = "ftZ1QmWD8F47EiHRe0IPZrYN8UaT58ivrUOeMuhta9S91GvmsQUIow9UTukuVOZV";
-const ARG_HINT_CHANCES = Object.freeze({
+const PASSPHRASE = "ftZ1QmWD8F47EiHRe0IPZrYN8UaT58ivrUOeMuhta9S91GvmsQUIow9UTukuVOZV";
+const HINT_CHANCES = Object.freeze({
   render: 0.28,
-  download: 0.4,
+  download: 1,
 });
 
 export function createUiHelpers({
@@ -62,13 +62,13 @@ export function createUiHelpers({
     elements.meta.scrollTop = elements.meta.scrollHeight;
   }
 
-  function maybeLogArgHint(source) {
-    const chance = ARG_HINT_CHANCES[source] ?? 0.25;
+  function maybeLogHint(source) {
+    const chance = HINT_CHANCES[source] ?? 0.25;
     if (Math.random() > chance) {
       return;
     }
 
-    const fingerprint = `${ARG_PASSPHRASE.slice(0, 4)}...${ARG_PASSPHRASE.slice(-4)}`;
+    const fingerprint = `${PASSPHRASE.slice(0, 4)}...${PASSPHRASE.slice(-4)}`;
     const messages = {
       render: [
         `Hint: one passphrase is static, not generated, and it was baked into the source. Fingerprint ${fingerprint}.`,
@@ -82,7 +82,7 @@ export function createUiHelpers({
     const options = messages[source] ?? messages.render;
     const message = options[Math.floor(Math.random() * options.length)];
 
-    appendLog(message, { level: "trace", tag: "arg" });
+    appendLog(message, { level: "trace", tag: "signal" });
   }
 
   function refreshControlStates() {
@@ -135,7 +135,7 @@ export function createUiHelpers({
       appendLog(`colors=${colorsText}`, { level: "trace", tag: "color" });
     }
 
-    maybeLogArgHint("render");
+    maybeLogHint("render");
   }
 
   function displayHelpMessage() {
@@ -170,7 +170,7 @@ export function createUiHelpers({
 
   return {
     appendLog,
-    maybeLogArgHint,
+    maybeLogHint,
     refreshControlStates,
     updateMeta,
     createGenerateHandler,
