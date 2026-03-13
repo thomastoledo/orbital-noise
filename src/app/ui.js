@@ -119,7 +119,7 @@ export function createUiHelpers({
     );
 
     if (colorsText) {
-      appendLog(`palette=${colorsText}`, { level: "trace", tag: "color" });
+      appendLog(`colors=${colorsText}`, { level: "trace", tag: "color" });
     }
 
     logArgHint();

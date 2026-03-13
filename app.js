@@ -105,10 +105,6 @@ const handleGenerateWithHelpMessage = ui.createGenerateHandler(generate);
 async function init() {
   populateSelect(elements.styleSelect, STYLE_OPTIONS);
   populateSelect(elements.formatSelect, FORMAT_OPTIONS);
-  ui.appendLog("Cosmos generator console attached.", {
-    level: "trace",
-    tag: "boot",
-  });
 
   elements.generateBtn.addEventListener("click", handleGenerateWithHelpMessage);
   elements.downloadBtn.addEventListener("click", () => {
